@@ -3,23 +3,34 @@ import json
 import requests
 import datetime
 import time
+import csv
 
 self_URL = "http://13.59.255.194:5000/notificationCompletedRate"
 contact_URL = "http://13.59.255.194:5000/checkContactStatusRate"
 dump_URL = "http://13.59.255.194:5000/checkDumpData"
+word_URL = "http://13.59.255.194:5000/wordToMe"
+whoCheckMe_URL = "http://13.59.255.194:5000/whoCheckMyStatus"
+presentWayResult_URL = "http://13.59.255.194:5000/idealStatusResult"
+contactStatusPresentResult_URL = "http://13.59.255.194:5000/contactStatusPresentResult"
 
 user_ids = {
-    "test": ["armuro"],
-    "312": ["lucy", "yang", "mandytsai"]
+    "test": ["test1", "test3"],
+    "王培霖": ["asazelur", "kid", "chengt"] # 主要參與者
+    # "王培霖": ["3939889", "wendy60612913"] # 半參與者
 }
 
 while True:
     group = input("Which group do you want to query? # Type 'q' or 'Q' to exit the program: ")
     if group == "q" or group == "Q":
         break
-    print ("'1' to query 'Self Questionnaire'")
-    print ("'2' to query 'Contact Questionnaire'")
-    print ("'3' to query 'dump data'")
+    print ("'1' 檢查資料: query 'Self Questionnaire'")
+    print ("'2' 檢查資料: query 'Contact Questionnaire'")
+    print ("'3' 檢查資料: query 'dump data'")
+    print ("'4' 看誰留言給我: to see who send me messages")
+    print ("'5' 看誰查看我的狀態: to see who check my status")
+    print ("'6' 實際狀態呈現方式統計: for Self ideal present way count result")
+    print ("'7' 看聯絡人狀態呈現方式統計: for contact status present way count result")
+    # print ("'e' for every day query job ()")
     service = input(": ")
 
     date_range = input("Please indicate the time range you're querying for (e.g. '0720-0721') Your Answer: ")
@@ -47,21 +58,28 @@ while True:
     print ("end_month: ", end_month)
     print ("end_date: ", end_date)
 
+    outputFile = input("Output .csv File?  (y/n): ")
     print ("Now querying '" + group + "' between " + str(start_date) + " and " + str(end_date))
-
-    data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
-    query = json.dumps(data)
 
     if service == '1':
         print ("####### Quering: SELF Questionnaire #######")
-        selfTable = PrettyTable(['User ID','Total Notifications','Completed','Completed Rate'])
+        total = 0
+        totalComplete = 0
+        totalEdit = 0
+        selfTable = PrettyTable(['User ID','Total Notifications','Notifications Completed','Notifications Completed Rate', '# Edit Status'])
         for user in user_ids[group]:
             # print (user)
-            
+            data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
+            query = json.dumps(data)
             res = requests.post(self_URL, json = query)
             userData = json.loads(res.text)
+            print (userData)
             # Id, 總共幾筆通知問卷, 完成幾筆通知問卷, 完成比率, 自行編輯狀態問卷有幾筆 #
             selfTable.add_row([user, userData['total'], userData['selfCompleted'], userData['completedRate'], userData['selfEditCompleted']])
+            total += userData['total']
+            totalComplete += userData['selfCompleted']
+            totalEdit += userData['selfEditCompleted']
+        selfTable.add_row(['Total', total, totalComplete, '#', totalEdit])
             
         print(selfTable)
 
@@ -69,21 +87,87 @@ while True:
         print ("####### Quering: CONTACT Questionnaire #######")
         contactTable = PrettyTable(['User ID','Contact ID','count'])
         for user in user_ids[group]:
-            # data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
-            # query = json.dumps(data)
+            data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
+            query = json.dumps(data)
             res = requests.post(contact_URL, json = query)
             userData = json.loads(res.text)
             for key, value in userData.items():
                 contactTable.add_row([user, key, value])
                 # print (key, " ", value)
+            # if outputFile == 'y':  ##  TODO: output csv file
         print (contactTable)
 
     elif service == '3':
         print ("####### Quering: DUMP Data #######")
         dumpTable = PrettyTable(['User ID', 'Total Data Count'])
         for user in user_ids[group]:
-            
+            data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
+            query = json.dumps(data)
             res = requests.post(dump_URL, json = query)
             userData = json.loads(res.text)
             dumpTable.add_row([user, userData['count']])
         print (dumpTable)
+    
+    elif service == '4':
+        print ("####### See Who Send Me Messages #######")
+        wordTable = PrettyTable(['To', 'From', 'Say Something...'])
+        for user in user_ids[group]:
+            data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
+            query = json.dumps(data)
+            res = requests.post(word_URL, json = query)
+            userData = json.loads(res.text)
+            if outputFile == 'y':
+                with open(user+'.csv', 'a+', newline='') as csvfile:
+                    w = csv.writer(csvfile)
+                    w.writerow(['我的聯絡人', '對我說...'])
+                    for key, value in userData.items():
+                        w.writerow([key, value])
+            for key, value in userData.items():
+                wordTable.add_row([user, key, value])
+        print (wordTable)
+
+    elif service == '5':
+        print ("####### See Who Check My Status #######")
+        for user in user_ids[group]:
+            checkTable = PrettyTable(['Who Check my Status', 'Count'])
+            print ("id: ", user)
+            data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
+            query = json.dumps(data)
+            res = requests.post(whoCheckMe_URL, json = query)
+            userData = json.loads(res.text)
+            if outputFile == 'y':
+                with open(user+'.csv', 'a+', newline='') as csvfile:
+                    w = csv.writer(csvfile)
+                    w.writerow(['我的聯絡人', '查看我的狀態的次數'])
+                    for key, val in userData.items():
+                        w.writerow([key, val])
+                
+            for key, value in userData.items():
+                checkTable.add_row([key, value])
+            print (checkTable)
+
+    elif service == '6':
+        print ("####### Ideal Present Way Result Computing #######")
+        for user in user_ids[group]:
+            presentWayTable = PrettyTable(['Present Way', 'Count'])
+            print ("id: ", user)
+            data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
+            query = json.dumps(data)
+            res = requests.post(presentWayResult_URL, json = query)
+            userData = json.loads(res.text)
+            for key, val in userData.items():
+                presentWayTable.add_row([key, val])
+            print (presentWayTable)
+
+    elif service == '7':
+        print ("####### Contact Status Present Way Result Computing #######")
+        for user in user_ids[group]:
+            contactPresentTable = PrettyTable(['項目', 'score'])
+            print ("id: ", user)
+            data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
+            query = json.dumps(data)
+            res = requests.post(contactStatusPresentResult_URL, json = query)
+            userData = json.loads(res.text)
+            for key, val in userData.items():
+                contactPresentTable.add_row([key, val])
+            print (contactPresentTable)
