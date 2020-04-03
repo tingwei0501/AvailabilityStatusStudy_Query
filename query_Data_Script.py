@@ -8,15 +8,28 @@ import csv
 self_URL = "http://13.59.255.194:5000/notificationCompletedRate"
 contact_URL = "http://13.59.255.194:5000/checkContactStatusRate"
 dump_URL = "http://13.59.255.194:5000/checkDumpData"
+lastDumpData_URL = "http://13.59.255.194:5000/lastDumpData"
 word_URL = "http://13.59.255.194:5000/wordToMe"
 whoCheckMe_URL = "http://13.59.255.194:5000/whoCheckMyStatus"
 presentWayResult_URL = "http://13.59.255.194:5000/idealStatusResult"
 contactStatusPresentResult_URL = "http://13.59.255.194:5000/contactStatusPresentResult"
 
 user_ids = {
-    "test": ["test1", "test3"],
-    "王培霖": ["asazelur", "kid", "chengt"] # 主要參與者
+    "test": ["test"],
+    "王培霖": ["asazelur", "kid", "chengt"], # 主要參與者
     # "王培霖": ["3939889", "wendy60612913"] # 半參與者
+    "老鼠會": ["nano1201", "鳥尹", "zxc012"],
+    "g2": ["larrypig", "scyang", "jason"],
+    "清大化學": ["dingkevin", "jbchang5", "ts09leo"], 
+    "畢業旅行": ["dorayaki", "Waiting", "laiheng"],
+    "g6": ["renee", "igloo", "綠"],
+    "余貞安": ["julie", "jjcat", "88888866"],
+    "薛丁格的劉劉": ["阿榛", "Brenda", "nata0601"],
+    "大家不睡覺": ["abbysayhi", "OWO", "Zelda", "sharon07088"],
+    # "partial": ["River", "littlebaby", "ywr", "ronnie77", "yjessie", "mushroom", "88888877", "88888888"],
+    "322": ["李睿", "stark", "Titan"],
+    "227打switch": ["蛋蛋", "kao", "m.chao", "小李"],
+    "partial": [],
 }
 
 while True:
@@ -24,6 +37,7 @@ while True:
     if group == "q" or group == "Q":
         break
     print ("'1' 檢查資料: query 'Self Questionnaire'")
+    print ("'d' 最後一筆Dump資料")
     print ("'2' 檢查資料: query 'Contact Questionnaire'")
     print ("'3' 檢查資料: query 'dump data'")
     print ("'4' 看誰留言給我: to see who send me messages")
@@ -63,10 +77,11 @@ while True:
 
     if service == '1':
         print ("####### Quering: SELF Questionnaire #######")
-        total = 0
-        totalComplete = 0
-        totalEdit = 0
-        selfTable = PrettyTable(['User ID','Total Notifications','Notifications Completed','Notifications Completed Rate', '# Edit Status'])
+        systemTotal = 0
+        totalSelfCompleted = 0
+        totalSelfEdit = 0
+        editTotal = 0
+        selfTable = PrettyTable(['User ID','Total System Notifications','Notifications Completed','Notifications Completed Rate', '# Total Edit Status', '# Edit Completed', '# Edit Completed Rate'])
         for user in user_ids[group]:
             # print (user)
             data = {'id': user, 'query_start_month': start_month, 'query_end_month': end_month, 'query_start_date': start_date, 'query_end_date': end_date}
@@ -74,14 +89,23 @@ while True:
             res = requests.post(self_URL, json = query)
             userData = json.loads(res.text)
             print (userData)
-            # Id, 總共幾筆通知問卷, 完成幾筆通知問卷, 完成比率, 自行編輯狀態問卷有幾筆 #
-            selfTable.add_row([user, userData['total'], userData['selfCompleted'], userData['completedRate'], userData['selfEditCompleted']])
-            total += userData['total']
-            totalComplete += userData['selfCompleted']
-            totalEdit += userData['selfEditCompleted']
-        selfTable.add_row(['Total', total, totalComplete, '#', totalEdit])
+            # Id, 總共幾筆通知問卷, 完成幾筆通知問卷, 完成比率, 自行編輯狀態問卷有幾筆, 完成幾筆自行編輯問卷, 完成比率 #
+            selfTable.add_row([user, userData['systemTotal'], userData['selfCompleted'], userData['selfCompletedRate'], userData['editTotal'], userData['selfEditCompleted'], userData['editCompletedRate']])
+            systemTotal += userData['systemTotal']
+            editTotal += userData['editTotal']
+            totalSelfCompleted += userData['selfCompleted']
+            totalSelfEdit += userData['selfEditCompleted']
+        selfTable.add_row(['Total', systemTotal, totalSelfCompleted, '#', editTotal, totalSelfEdit, '#'])
             
         print(selfTable)
+
+    elif service == 'd':
+        for user in user_ids[group]:
+            data = {'id': user}
+            query = json.dumps(data)
+            res = requests.post(lastDumpData_URL, json = query)
+            userData = json.loads(res.text)
+            print (userData)
 
     elif service == '2':
         print ("####### Quering: CONTACT Questionnaire #######")
